@@ -17,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={`${inter.className} bg-[#161b25] text-cyan-100 `}>
         
         <Theme accentColor='mint'
           grayColor="gray"
