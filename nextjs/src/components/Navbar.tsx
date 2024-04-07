@@ -14,7 +14,7 @@ const Navbar = ({ }) => {
 
   const currentPath = usePathname();
 
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   const [theme, setTheme] = useState<"dark" | "light">("dark");
 

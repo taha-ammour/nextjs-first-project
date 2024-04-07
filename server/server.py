@@ -4,6 +4,7 @@ from flask_cors import CORS
 import requests
 from bs4 import BeautifulSoup
 import re  # Import the re module
+import json
 import time
 
 app = Flask(__name__)
@@ -122,6 +123,7 @@ def parse_search_results2(html):
             if title_elem and link_elem and img_elem:
                 title = title_elem.text.strip()
                 link = 'https://www.imdb.com' + link_elem['href']
+                
                 img_src = img_elem['src']
                 movie_id = re.search(r'tt\d+', link_elem['href']).group()  # Extracting movie ID using regex
                 
@@ -139,7 +141,7 @@ def parse_search_results2(html):
                     rating_count = title_data.get("aggregateRating", {}).get("ratingCount", "")
                     release_date = title_data.get("datePublished", "")
                     runtime = title_data.get("duration", "")
-                    title = title_data.get("alternateName", "")
+                    title = title_data.get("name", "")
                     
                     if title_data["@type"] == "TVSeries":
                         episodes_data = title_data.get("episode")
@@ -220,6 +222,89 @@ def parse_top250_movies(html):
     else:
         raise RuntimeError("Couldn't find movie list on the page.")
 
+
+def parse_tv_meter_chart(html):
+    soup = BeautifulSoup(html, 'html.parser')
+    search_results = soup.find('ul', class_='ipc-metadata-list')
+    
+    if search_results:
+        search = search_results.find_all('li')
+        search_data = []
+        for result in search:
+            title_elem = result.a
+            link_elem = result.a
+            
+            # Check if any of the required elements is missing
+            if title_elem and link_elem:
+                title = title_elem.text.strip()
+                link = 'https://www.imdb.com' + link_elem['href']
+                movie_id = re.search(r'tt\d+', link_elem['href']).group()  # Extracting movie ID using regex
+                
+                details_html = fetch_html(link)
+                details_soup = BeautifulSoup(details_html,'html.parser')
+                
+                title_type = details_soup.find('script', type='application/ld+json')
+                
+                if title_type:
+                    title_data = json.loads(title_type.string)
+                    trailer_data = title_data.get('trailer', {})
+                    genres = title_data.get("genre", [])
+                    description = title_data.get("description", "")
+                    rating_value = title_data.get("aggregateRating", {}).get("ratingValue", "")
+                    rating_count = title_data.get("aggregateRating", {}).get("ratingCount", "")
+                    release_date = title_data.get("datePublished", "")
+                    runtime = title_data.get("duration", "")
+                    title = title_data.get("name", "")
+                    
+                    if title_data["@type"] == "TVSeries":
+                        episodes_data = title_data.get("episode")
+                        if episodes_data:
+                            episodes_info = {}
+                            for episode in episodes_data:
+                                season_num = episode.get("partOfSeason", {}).get("seasonNumber")
+                                if season_num:
+                                    episodes_info[season_num] = episodes_info.get(season_num, 0) + 1
+                            seasons_info = [{"season": season, "episodes": episodes} for season, episodes in episodes_info.items()]
+                        else:
+                            seasons_info = []
+                            
+                        search_data.append({
+                            'title': title, 
+                            'link': link, 
+                            'id': movie_id,
+                            'type': 'TV Series',
+                            'trailer': trailer_data.get("embedUrl"),
+                            'genres': genres,
+                            'description': description,
+                            'rating_value': rating_value,
+                            'rating_count': rating_count,
+                            'release_date': release_date,
+                            'runtime': runtime
+                        })
+                    else:
+                        search_data.append({
+                            'title': title, 
+                            'link': link, 
+                            'id': movie_id, 
+                            'type': 'Movie', 
+                            'trailer':  trailer_data.get("embedUrl"), 
+                            'genres': genres,
+                            'description': description,
+                            'rating_value': rating_value,
+                            'rating_count': rating_count,
+                            'release_date': release_date,
+                            'runtime': runtime
+                        })
+                else:
+                    print("Error: Could not find title type information.")
+            else:
+                print("Error: Missing required elements for a search result.")
+               
+        return search_data
+    else:
+        raise RuntimeError("Couldn't find TV meter chart on the page.")
+
+
 @app.route('/imdb/search/<query>')
 def search_imdb(query):
     
@@ -265,6 +350,16 @@ def scrape_imdb_top_250():
         html = fetch_html('https://www.imdb.com/chart/top/')
         movie_data = parse_top250_movies(html)
         return jsonify(movie_data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/imdb/tvmeter')
+def scrape_imdb_newTvshows():
+    try:
+        url = 'https://www.imdb.com/chart/tvmeter/'
+        html = fetch_html(url)
+        data = parse_tv_meter_chart(html)
+        return jsonify(data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

@@ -52,27 +52,38 @@ const Top250 = () => {
   };
 
   return (
-    <div className="top250-container">
-      <h1>IMDb Top 250 Movies</h1>
+    <div className="top250 justify-end block bg-[#101015] rounded-xl text-center overflow-hidden mt-10">
+      <div className="bg-[#0e0e11] rounded-t-xl p-2">
+        <h1 >IMDb Top 250</h1>
+        <div className="pt-2">
+          <button className="pr-4 border-r-2 border-gray-900">
+            Movies
+          </button>
+          <button className="pl-1 ">
+            TVshows
+          </button>
+        </div>
+      </div>
       {loading && <p>Loading...</p>}
       {error && <p>{error}</p>}
       {!loading && !error && (
-        <div className="movies-list">
+        <div className="movies-list flex flex-col">
           {paginatedMovies.map((movie) => (
-            <div key={movie.id} className="movie-item">
+            <div key={movie.id} className="movie-item flex flex-row items-center w-full h-full m-0 border-t-2 p-4 border-[#333]">
               <a
                 href={movie.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="movie-link"
+                className="movie-link w-full h-fit object-cover  "
               >
                 <img
                   className="movie-poster"
                   src={movie.img_src}
                   alt={movie.title}
+                  style={{ width: "100%", height: "100%" }}
                 />
               </a>
-              <div className="movie-details">
+              <div className="movie-details block ">
                 <h2>{movie.title}</h2>
               </div>
             </div>
@@ -84,9 +95,9 @@ const Top250 = () => {
           <button
             key={pageNumber}
             onClick={() => handlePageChange(pageNumber)}
-            className={currentPage === pageNumber ? "active" : ""}
+            className={currentPage === pageNumber ? "active text-center" : ""}
           >
-            {pageNumber}
+            &nbsp; {pageNumber} &nbsp;
           </button>
         ))}
       </div>
