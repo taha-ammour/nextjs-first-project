@@ -27,7 +27,7 @@ export const options: NextAuthOptions = {
           throw new Error('Missing username or password');
         }
         try {
-          await prisma.$connect();
+          await connectToDB();
           const user = await prisma.user.findFirst({
             where: { username: credentials.username },
           });
@@ -74,6 +74,7 @@ export const options: NextAuthOptions = {
       return session;
     },
   },
+  debug: true, 
 };
 
 export default NextAuth(options);

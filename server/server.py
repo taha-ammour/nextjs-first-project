@@ -85,8 +85,10 @@ async def fetch_movie_details(link: str) -> dict:
             release_date = title_data.get("datePublished", "") or ""
             runtime = title_data.get("duration", "") or ""
             img_high = title_data.get("image", "") or ""
+            title = title_data.get("name", "") or ""
 
             return {
+                'title': title,
                 'trailer': trailer_data.get("embedUrl"),
                 'img_high': img_high,
                 'genres': genres if genres is not None else [],
@@ -125,7 +127,7 @@ async def parse_search_results(html: str) -> list:
         search_data = []
         for (title, link, img_src, movie_id), details in zip(tasks, movie_data):
             search_data.append(Movie(
-                title=title,
+                title=details.get('title', title),  # Use the extracted title if available
                 link=link,
                 img_src=img_src,
                 ttid=movie_id,
@@ -167,7 +169,7 @@ async def parse_top_tv_shows(html: str) -> list:
         search_data = []
         for (title, link, img_src, movie_id), details in zip(tasks, movie_data):
             search_data.append(Movie(
-                title=title,
+                title=details.get('title', title),  # Use the extracted title if available
                 link=link,
                 img_src=img_src,
                 ttid=movie_id,
