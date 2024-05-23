@@ -5,6 +5,8 @@ import InfiniteScroll from 'react-infinite-scroll-component';
 import { Card, Inset, Strong, Text, TextField } from '@radix-ui/themes';
 import { GiAbstract069 } from "react-icons/gi";
 import { z } from 'zod';
+import Link from 'next/link';
+import Navbar from '@/components/Navbar';
 
 interface Movie {
     id: string;
@@ -71,7 +73,8 @@ const MovieList: React.FC = () => {
     };
 
     return (
-        <div className='w-full h-full mt-12'>
+        <div className='w-full h-full mt-12 ml-2'>
+            <Navbar/>
             <h2 className="text-center text-[#78A083] font-bold">Movie</h2>
             <div className='w-full flex justify-center'>
                 <TextField.Root >
@@ -99,27 +102,29 @@ const MovieList: React.FC = () => {
                 >
                     <ul className='flex flex-wrap justify-center p-4'>
                         {movies.map((movie) => (
-                            <li key={movie.id} className='group flex flex-col items-center w-40 h-52 m-4 relative '>
-                                <Card size="2" style={{ width: '100%', cursor: 'pointer', position: 'absolute', maxWidth: 240 }} className='shadow-xl h-52 m-2 bg-lime-950 mix-blend-multiply' onClick={() => handleMovieClick(movie.id)}>
-                                    <Inset clip="padding-box" side="all" pb="0">
-                                        <img
-                                            src={movie.img_high}
-                                            alt={movie.title}
-                                            style={{
-                                                display: 'block',
-                                                objectFit: 'cover',
-                                                width: '100%',
-                                                height: '100%',
-                                                backgroundColor: 'var(--gray-5)',
-                                            }}
-                                        />
-                                    </Inset>
-                                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-red-900 to-transparent transition-all duration-300 group-hover:scale-110">
-                                        <Text as="p" size="1" className='text-sky-50'>
-                                            <Strong>{movie.title}</Strong> Year: {movie.release_date} Type: {movie.type} ID: {movie.id}
-                                        </Text>
-                                    </div>
-                                </Card>
+                            <li key={movie.id} className='group flex-col items-center w-40 h-52 m-4 relative '>
+                                <Link href={`/mov/${movie.id}`}>
+                                    <Card size="2" style={{ width: '100%', cursor: 'pointer', position: 'absolute', maxWidth: 240 }} className='shadow-xl h-52 m-2 bg-lime-950 mix-blend-multiply' onClick={() => handleMovieClick(movie.id)}>
+                                        <Inset clip="padding-box" side="all" pb="0">
+                                            <img
+                                                src={movie.img_high}
+                                                alt={movie.title}
+                                                style={{
+                                                    display: 'block',
+                                                    objectFit: 'cover',
+                                                    width: '100%',
+                                                    height: '100%',
+                                                    backgroundColor: 'var(--gray-5)',
+                                                }}
+                                            />
+                                        </Inset>
+                                        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-red-900 to-transparent transition-all duration-300 group-hover:scale-110">
+                                            <Text as="p" size="1" className='text-sky-50'>
+                                                <Strong>{movie.title}</Strong> Year: {movie.release_date} Type: {movie.type} ID: {movie.id}
+                                            </Text>
+                                        </div>
+                                    </Card>
+                                </Link>
                             </li>
                         ))}
                     </ul>

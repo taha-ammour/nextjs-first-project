@@ -2,10 +2,10 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { z } from "zod";
+import Link from "next/link";
 
-// Define schema for movie data validation using Zod
 const MovieSchema = z.object({
-  id: z.string(),
+  ttid: z.string(),
   img_src: z.string(),
   link: z.string(),
   title: z.string(),
@@ -52,8 +52,8 @@ const Top250 = () => {
   };
 
   return (
-    <div className="top250 justify-end block bg-[#101015] rounded-xl text-center overflow-hidden mt-10">
-      <div className="bg-[#0e0e11] rounded-t-xl p-2">
+    <div className="top250 justify-end block  rounded-xl text-center overflow-hidden mt-10">
+      <div className="bg-[#0e0e11] rounded-xl p-2">
         <h1 >IMDb Top 250</h1>
         <div className="pt-2">
           <button className="pr-4 border-r-2 border-gray-900">
@@ -64,38 +64,42 @@ const Top250 = () => {
           </button>
         </div>
       </div>
-      {loading && <p>Loading...</p>}
-      {error && <p>{error}</p>}
+      {loading && <p className="bg-[#131313]  -m-2">Loading...</p>}
+      {error && <p className="bg-[#131313]  -m-2">{error}</p>}
       {!loading && !error && (
         <div className="movies-list flex flex-col">
           {paginatedMovies.map((movie) => (
-            <div key={movie.id} className="movie-item flex flex-row items-center w-full h-full m-0 border-t-2 p-4 border-[#333]">
-              <a
-                href={movie.link}
-                target="_blank"
+            <button key={movie.ttid} className="movie-item hover:shadow-2xl bg-[#131313] flex mt-5 rounded-xl flex-row items-center w-23 h-36 m-0 border-t-2 p-4 border-[#333] duration-0 hover:duration-300 ease-in-out">
+              <Link
+                href={`/mov/${movie.ttid}`}
+                target="_self"
                 rel="noopener noreferrer"
-                className="movie-link w-full h-fit object-cover  "
+                className="movie-link w-full h-full flex-row flex "
               >
                 <img
-                  className="movie-poster"
+                  className="movie-poster rounded-xl "
                   src={movie.img_src}
                   alt={movie.title}
-                  style={{ width: "100%", height: "100%" }}
-                />
-              </a>
-              <div className="movie-details block ">
-                <h2>{movie.title}</h2>
-              </div>
-            </div>
+                  style={{
+                    display: 'block',
+                    objectFit: 'cover',
+                    width: "100%", height: "100%"
+                  }}
+                /> <div className="movie-details flex h-full items-center p-2">
+                  <h2>{movie.title}</h2>
+                </div>
+              </Link>
+
+            </button>
           ))}
         </div>
       )}
-      <div className="pagination">
+      <div className="pagination mt-5">
         {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
           <button
             key={pageNumber}
             onClick={() => handlePageChange(pageNumber)}
-            className={currentPage === pageNumber ? "active text-center" : ""}
+            className={currentPage === pageNumber ? "active text-center bg-slate-600" : ""}
           >
             &nbsp; {pageNumber} &nbsp;
           </button>

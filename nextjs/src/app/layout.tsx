@@ -17,13 +17,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-[#161b25] text-cyan-100 `}>
+      <body className={`${inter.className} bg-[#2B2B2B] text-white`}>
         
         <Theme accentColor='mint'
           grayColor="gray"
           panelBackground="solid"
           scaling="100%"
-          radius="full">
+          radius="full"
+          >
           {children}
         </Theme>
       </body>

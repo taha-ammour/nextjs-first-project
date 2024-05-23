@@ -1,328 +1,207 @@
-import json
-from flask import Flask, jsonify, request
-from flask_cors import CORS
-import requests
+import asyncio
+from typing import List, Optional
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+import httpx
 from bs4 import BeautifulSoup
-import re  # Import the re module
+import re
 import json
-import time
+from pydantic import BaseModel
+from aiocache import Cache
+from aiocache import cached
+import logging
 
-app = Flask(__name__)
-CORS(app)
+app = FastAPI()
 
-def fetch_html(url, retries=3, backoff=2):
+# Allow CORS for all origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Configure caching
+cache = Cache(Cache.MEMORY)
+
+class Movie(BaseModel):
+    title: str
+    link: str
+    img_src: str
+    ttid: str
+    type: str
+    trailer: Optional[str] = None
+    img_high: Optional[str] = None
+    genres: List[str] = []
+    description: Optional[str] = ""
+    rating_value: Optional[str] = ""
+    rating_count: Optional[str] = ""
+    release_date: Optional[str] = ""
+    runtime: Optional[str] = ""
+
+async def fetch_html(url: str, retries: int = 3, backoff: int = 2) -> str:
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
     }
-    for attempt in range(retries):
-        try:
-            response = requests.get(url, headers=headers, timeout=10)  # Adjust timeout as needed
-            response.raise_for_status()  # Raise an error for non-200 status codes
-            return response.text
-        except requests.RequestException as e:
-            print(f'Attempt {attempt + 1} failed: {e}')
-            if attempt < retries - 1:
-                print(f'Retrying in {backoff ** attempt} seconds...')
-                time.sleep(backoff ** attempt)
-    raise RuntimeError(f'Failed to fetch HTML from {url} after {retries} attempts.')
+    async with httpx.AsyncClient() as client:
+        for attempt in range(retries):
+            try:
+                response = await client.get(url, headers=headers, timeout=10)
+                response.raise_for_status()
+                return response.text
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 503:
+                    logger.error(f'Server unavailable (503) for URL: {url}, attempt {attempt + 1}')
+                    if attempt < retries - 1:
+                        await asyncio.sleep(backoff ** attempt)
+                        continue
+                logger.error(f'Attempt {attempt + 1} failed: {e}')
+                if attempt < retries - 1:
+                    await asyncio.sleep(backoff ** attempt)
+            except httpx.RequestError as e:
+                logger.error(f'Attempt {attempt + 1} failed: {e}')
+                if attempt < retries - 1:
+                    await asyncio.sleep(backoff ** attempt)
+        raise RuntimeError(f'Failed to fetch HTML from {url} after {retries} attempts.')
 
-def parse_search_results(html):
-    soup = BeautifulSoup(html, 'html.parser')
-    search_results = soup.find('ul', class_='ipc-metadata-list')
-    if search_results:
-        search = search_results.find_all('li')
-        search_data = []
-        for result in search:
-            title_elem = result.a
-            link_elem = result.a
-            img_elem = result.img
-            
-            # Check if any of the required elements is missing
-            if title_elem and link_elem and img_elem:
-                title = title_elem.text.strip()
-                link = 'https://www.imdb.com' + link_elem['href']
-                img_src = img_elem['src']
-                movie_id = re.search(r'tt\d+', link_elem['href']).group()  # Extracting movie ID using regex
-                
-                details_html = fetch_html(link)
-                details_soup = BeautifulSoup(details_html,'html.parser')
-                
-                title_type = details_soup.find('script', type='application/ld+json')
-                if title_type:
-                    title_data = json.loads(title_type.string)
-                    trailer_data = title_data.get('trailer', {})
-                    genres = title_data.get("genre", [])
-                    description = title_data.get("description", "")
-                    rating_value = title_data.get("aggregateRating", {}).get("ratingValue", "")
-                    rating_count = title_data.get("aggregateRating", {}).get("ratingCount", "")
-                    release_date = title_data.get("datePublished", "")
-                    runtime = title_data.get("duration", "")
-                    if title_data["@type"] == "TVSeries":
-                        episodes_data = title_data.get("episode")
-                        if episodes_data:
-                            episodes_info = {}
-                            for episode in episodes_data:
-                                season_num = episode.get("partOfSeason", {}).get("seasonNumber")
-                                if season_num:
-                                    episodes_info[season_num] = episodes_info.get(season_num, 0) + 1
-                            seasons_info = [{"season": season, "episodes": episodes} for season, episodes in episodes_info.items()]
-                        else:
-                            seasons_info = []
-                            
-                        search_data.append({
-                            'title': title, 
-                            'link': link, 
-                            'img_src': img_src, 
-                            'id': movie_id,
-                            'type': 'TV Series',
-                            'trailer': trailer_data.get("embedUrl"),
-                            'img_high': title_data.get("image"),
-                            'genres': genres,
-                            'description': description,
-                            'rating_value': rating_value,
-                            'rating_count': rating_count,
-                            'release_date': release_date,
-                            'runtime': runtime
-                        })
-                    else:
-                        search_data.append({
-                            'title': title, 
-                            'link': link, 
-                            'img_src': img_src, 
-                            'id': movie_id, 
-                            'type': 'Movie', 
-                            'trailer':  trailer_data.get("embedUrl"), 
-                            'img_high': title_data.get("image"),
-                            'genres': genres,
-                            'description': description,
-                            'rating_value': rating_value,
-                            'rating_count': rating_count,
-                            'release_date': release_date,
-                            'runtime': runtime
-                        })
-                else:
-                    print("Error: Could not find title type information.")
-            else:
-                print("Error: Missing required elements for a search result.")
-        return search_data
-    else:
-        raise RuntimeError("Couldn't find movie list on the page.")
-
-def parse_search_results2(html):
-    soup = BeautifulSoup(html, 'html.parser')
-    search_results = soup.find('ul', class_='ipc-metadata-list')
-    if search_results:
-        search = search_results.find_all('li')
-        search_data = []
-        for result in search:
-            title_elem = result.a
-            link_elem = result.a
-            img_elem = result.img
-            
-            # Check if any of the required elements is missing
-            if title_elem and link_elem and img_elem:
-                title = title_elem.text.strip()
-                link = 'https://www.imdb.com' + link_elem['href']
-                
-                img_src = img_elem['src']
-                movie_id = re.search(r'tt\d+', link_elem['href']).group()  # Extracting movie ID using regex
-                
-                details_html = fetch_html(link)
-                details_soup = BeautifulSoup(details_html,'html.parser')
-                
-                title_type = details_soup.find('script', type='application/ld+json')
-                
-                if title_type:
-                    title_data = json.loads(title_type.string)
-                    trailer_data = title_data.get('trailer', {})
-                    genres = title_data.get("genre", [])
-                    description = title_data.get("description", "")
-                    rating_value = title_data.get("aggregateRating", {}).get("ratingValue", "")
-                    rating_count = title_data.get("aggregateRating", {}).get("ratingCount", "")
-                    release_date = title_data.get("datePublished", "")
-                    runtime = title_data.get("duration", "")
-                    title = title_data.get("name", "")
-                    
-                    if title_data["@type"] == "TVSeries":
-                        episodes_data = title_data.get("episode")
-                        if episodes_data:
-                            episodes_info = {}
-                            for episode in episodes_data:
-                                season_num = episode.get("partOfSeason", {}).get("seasonNumber")
-                                if season_num:
-                                    episodes_info[season_num] = episodes_info.get(season_num, 0) + 1
-                            seasons_info = [{"season": season, "episodes": episodes} for season, episodes in episodes_info.items()]
-                        else:
-                            seasons_info = []
-                            
-                        search_data.append({
-                            'title': title, 
-                            'link': link, 
-                            'img_src': img_src, 
-                            'id': movie_id,
-                            'type': 'TV Series',
-                            'trailer': trailer_data.get("embedUrl"),
-                            'img_high': title_data.get("image"),
-                            'genres': genres,
-                            'description': description,
-                            'rating_value': rating_value,
-                            'rating_count': rating_count,
-                            'release_date': release_date,
-                            'runtime': runtime
-                        })
-                    else:
-                        search_data.append({
-                            'title': title, 
-                            'link': link, 
-                            'img_src': img_src, 
-                            'id': movie_id, 
-                            'type': 'Movie', 
-                            'trailer':  trailer_data.get("embedUrl"), 
-                            'img_high': title_data.get("image"),
-                            'genres': genres,
-                            'description': description,
-                            'rating_value': rating_value,
-                            'rating_count': rating_count,
-                            'release_date': release_date,
-                            'runtime': runtime
-                        })
-                else:
-                    print("Error: Could not find title type information.")
-            else:
-                print("Error: Missing required elements for a search result.")
-               
-        return search_data
-    else:
-        raise RuntimeError("Couldn't find movie list on the page.")
-
-
-def parse_top250_movies(html):
-    soup = BeautifulSoup(html, 'html.parser')
-    movie_list = soup.find('ul', class_='ipc-metadata-list')
-    if movie_list:
-        movies = movie_list.find_all('li')
-        movie_data = []
-        
-        for movie in movies:
-            title_elem = movie
-            link_elem = movie.a
-            img_elem = movie.img
-            
-            # Check if any of the required elements is missing
-            if title_elem and link_elem and img_elem:
-                title = title_elem.text.strip()
-                link = 'https://www.imdb.com' + link_elem['href']
-                img_src = img_elem['src']
-                movie_id = re.search(r'tt\d+', link_elem['href']).group()  # Extracting movie ID using regex
-                movie_info = {'title': title, 'link': link, 'img_src': img_src, 'id': movie_id}
-                movie_data.append(movie_info)
-            else:
-                print("Error: Missing required elements for a movie.")
-        return movie_data
-    else:
-        raise RuntimeError("Couldn't find movie list on the page.")
-
-
-def parse_tv_meter_chart(html):
-    soup = BeautifulSoup(html, 'html.parser')
-    search_results = soup.find('ul', class_='ipc-metadata-list')
-    
-    if search_results:
-        search = search_results.find_all('li')
-        search_data = []
-        for result in search:
-            title_elem = result.a
-            link_elem = result.a
-            
-            # Check if any of the required elements is missing
-            if title_elem and link_elem:
-                title = title_elem.text.strip()
-                link = 'https://www.imdb.com' + link_elem['href']
-                movie_id = re.search(r'tt\d+', link_elem['href']).group()  # Extracting movie ID using regex
-                
-                details_html = fetch_html(link)
-                details_soup = BeautifulSoup(details_html,'html.parser')
-                
-                title_type = details_soup.find('script', type='application/ld+json')
-                
-                if title_type:
-                    title_data = json.loads(title_type.string)
-                    trailer_data = title_data.get('trailer', {})
-                    genres = title_data.get("genre", [])
-                    description = title_data.get("description", "")
-                    rating_value = title_data.get("aggregateRating", {}).get("ratingValue", "")
-                    rating_count = title_data.get("aggregateRating", {}).get("ratingCount", "")
-                    release_date = title_data.get("datePublished", "")
-                    runtime = title_data.get("duration", "")
-                    title = title_data.get("name", "")
-                    
-                    if title_data["@type"] == "TVSeries":
-                        episodes_data = title_data.get("episode")
-                        if episodes_data:
-                            episodes_info = {}
-                            for episode in episodes_data:
-                                season_num = episode.get("partOfSeason", {}).get("seasonNumber")
-                                if season_num:
-                                    episodes_info[season_num] = episodes_info.get(season_num, 0) + 1
-                            seasons_info = [{"season": season, "episodes": episodes} for season, episodes in episodes_info.items()]
-                        else:
-                            seasons_info = []
-                            
-                        search_data.append({
-                            'title': title, 
-                            'link': link, 
-                            'id': movie_id,
-                            'type': 'TV Series',
-                            'trailer': trailer_data.get("embedUrl"),
-                            'genres': genres,
-                            'description': description,
-                            'rating_value': rating_value,
-                            'rating_count': rating_count,
-                            'release_date': release_date,
-                            'runtime': runtime
-                        })
-                    else:
-                        search_data.append({
-                            'title': title, 
-                            'link': link, 
-                            'id': movie_id, 
-                            'type': 'Movie', 
-                            'trailer':  trailer_data.get("embedUrl"), 
-                            'genres': genres,
-                            'description': description,
-                            'rating_value': rating_value,
-                            'rating_count': rating_count,
-                            'release_date': release_date,
-                            'runtime': runtime
-                        })
-                else:
-                    print("Error: Could not find title type information.")
-            else:
-                print("Error: Missing required elements for a search result.")
-               
-        return search_data
-    else:
-        raise RuntimeError("Couldn't find TV meter chart on the page.")
-
-
-@app.route('/imdb/search/<query>')
-def search_imdb(query):
-    
-    # Build the URL based on the provided parameters
-    url = f'https://www.imdb.com/find/?q={query}'
-    
+@cached(ttl=3600)
+async def fetch_movie_details(link: str) -> dict:
     try:
-        html = fetch_html(url)
-        search_data = parse_search_results(html)
-        return jsonify(search_data)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        details_html = await fetch_html(link)
+        details_soup = BeautifulSoup(details_html, 'html.parser')
+        title_type = details_soup.find('script', type='application/ld+json')
+        if title_type:
+            title_data = json.loads(title_type.string)
+            trailer_data = title_data.get('trailer', {})
+            genres = title_data.get("genre", []) or []
+            description = title_data.get("description", "") or ""
+            rating_value = str(title_data.get("aggregateRating", {}).get("ratingValue", "") or "")
+            rating_count = str(title_data.get("aggregateRating", {}).get("ratingCount", "") or "")
+            release_date = title_data.get("datePublished", "") or ""
+            runtime = title_data.get("duration", "") or ""
+            img_high = title_data.get("image", "") or ""
 
-@app.route('/imdb/advanced-search')
-def search_imdb_advanced():
-    query = request.args.get('q', '')  # Get the 'q' parameter from the query string
-    title_type = request.args.get('title_type')  # Get the 'title_type' parameter from the query string
-    release_date = request.args.get('release_date')  # Get the 'release_date' parameter from the query string
+            return {
+                'trailer': trailer_data.get("embedUrl"),
+                'img_high': img_high,
+                'genres': genres if genres is not None else [],
+                'description': description,
+                'rating_value': rating_value,
+                'rating_count': rating_count,
+                'release_date': release_date,
+                'runtime': runtime,
+                'type': title_data["@type"]
+            }
+    except Exception as e:
+        logger.error(f'Error fetching movie details from {link}: {e}')
+        return {}
+    return {}
+
+async def parse_search_results(html: str) -> list:
+    soup = BeautifulSoup(html, 'html.parser')
+    search_results = soup.find('ul', class_='ipc-metadata-list')
+    if search_results:
+        search = search_results.find_all('li')
+        tasks = []
+        for result in search:
+            title_elem = result.a
+            link_elem = result.a
+            img_elem = result.img
+            
+            if title_elem and link_elem and img_elem:
+                title = title_elem.text.strip()
+                link = 'https://www.imdb.com' + link_elem['href']
+                img_src = img_elem['src']
+                movie_id = re.search(r'tt\d+', link_elem['href']).group()
+                tasks.append((title, link, img_src, movie_id))
+
+        movie_data = await asyncio.gather(*[fetch_movie_details(task[1]) for task in tasks])
+
+        search_data = []
+        for (title, link, img_src, movie_id), details in zip(tasks, movie_data):
+            search_data.append(Movie(
+                title=title,
+                link=link,
+                img_src=img_src,
+                ttid=movie_id,
+                type='TV Series' if details.get('type') == 'TVSeries' else 'Movie',
+                trailer=details.get('trailer'),
+                img_high=details.get('img_high'),
+                genres=details.get('genres') if details.get('genres') is not None else [],
+                description=details.get('description'),
+                rating_value=details.get('rating_value'),
+                rating_count=details.get('rating_count'),
+                release_date=details.get('release_date'),
+                runtime=details.get('runtime')
+            ).dict())
+
+        return search_data
+    else:
+        raise RuntimeError("Couldn't find movie list on the page.")
+
+async def parse_top_tv_shows(html: str) -> list:
+    soup = BeautifulSoup(html, 'html.parser')
+    search_results = soup.find('tbody', class_='lister-list')
+    if search_results:
+        search = search_results.find_all('tr')
+        tasks = []
+        for result in search:
+            title_elem = result.find('td', class_='titleColumn').a
+            link_elem = result.find('td', class_='titleColumn').a
+            img_elem = result.find('td', class_='posterColumn').a.img
+            
+            if title_elem and link_elem and img_elem:
+                title = title_elem.text.strip()
+                link = 'https://www.imdb.com' + link_elem['href']
+                img_src = img_elem['src']
+                movie_id = re.search(r'tt\d+', link_elem['href']).group()
+                tasks.append((title, link, img_src, movie_id))
+
+        movie_data = await asyncio.gather(*[fetch_movie_details(task[1]) for task in tasks])
+
+        search_data = []
+        for (title, link, img_src, movie_id), details in zip(tasks, movie_data):
+            search_data.append(Movie(
+                title=title,
+                link=link,
+                img_src=img_src,
+                ttid=movie_id,
+                type='TV Series' if details.get('type') == 'TVSeries' else 'Movie',
+                trailer=details.get('trailer'),
+                img_high=details.get('img_high'),
+                genres=details.get('genres') if details.get('genres') is not None else [],
+                description=details.get('description'),
+                rating_value=details.get('rating_value'),
+                rating_count=details.get('rating_count'),
+                release_date=details.get('release_date'),
+                runtime=details.get('runtime')
+            ).dict())
+
+        return search_data
+    else:
+        raise RuntimeError("Couldn't find TV show list on the page.")
+
+@app.get('/imdb/search/{query}')
+async def search_imdb(query: str):
+    url = f'https://www.imdb.com/find/?q={query}'
+    try:
+        html = await fetch_html(url)
+        search_data = await parse_search_results(html)
+        return search_data
+    except Exception as e:
+        logger.error(f"Error searching IMDb: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get('/imdb/advanced-search')
+async def search_imdb_advanced(request: Request):
+    query = request.query_params.get('q', '')
+    title_type = request.query_params.get('title_type')
+    release_date = request.query_params.get('release_date')
     
     url = f'https://www.imdb.com/search/title/?title={query}'
     if title_type:
@@ -331,39 +210,52 @@ def search_imdb_advanced():
         url += f'&release_date={release_date}'
     
     try:
-        html = fetch_html(url)
-        search_data = parse_search_results2(html)
+        html = await fetch_html(url)
+        search_data = await parse_search_results(html)
         
-        # Combine search data with the "See More" button
         search_datas = {
             'results': search_data
         }
         
-        return jsonify(search_datas)
+        return search_datas
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error in advanced search on IMDb: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.route('/imdb/top250')
-def scrape_imdb_top_250():
+@app.get('/imdb/top250')
+async def scrape_imdb_top_250():
     try:
-        html = fetch_html('https://www.imdb.com/chart/top/')
-        movie_data = parse_top250_movies(html)
-        return jsonify(movie_data)
+        html = await fetch_html('https://www.imdb.com/chart/top/')
+        movie_data = await parse_search_results(html)
+        return movie_data
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error scraping IMDb Top 250: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.route('/imdb/tvmeter')
-def scrape_imdb_newTvshows():
+@app.get('/imdb/toptv')
+async def scrape_imdb_top_tv():
+    try:
+        url = 'https://www.imdb.com/chart/toptv/'
+        html = await fetch_html(url)
+        data = await parse_top_tv_shows(html)
+        return data
+    except Exception as e:
+        logger.error(f"Error scraping IMDb Top TV: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get('/imdb/tvmeter')
+async def scrape_imdb_tvmeter():
     try:
         url = 'https://www.imdb.com/chart/tvmeter/'
-        html = fetch_html(url)
-        data = parse_tv_meter_chart(html)
-        return jsonify(data)
+        html = await fetch_html(url)
+        data = await parse_search_results(html)
+        return data
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error scraping IMDb TV Meter: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8080)
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8080, log_level="debug")
 
-#https://www.imdb.com/tr/?pt=advsearch&spt=title&ht={}&pageAction=sr-seemor
+# uvicorn server:app --host 0.0.0.0 --port 8080 --reload
