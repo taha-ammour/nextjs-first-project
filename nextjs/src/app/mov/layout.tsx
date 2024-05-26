@@ -25,9 +25,7 @@ export default function RootLayout({
   return (
     <section>
 
-
       {children}
-
 
     </section>
   );

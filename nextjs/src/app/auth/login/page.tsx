@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { signIn, useSession } from 'next-auth/react';
 import gsap from 'gsap';
 import LoadingScreen from '../../../components/LoadingScreenSign';
+import Link from 'next/link';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const { data: session, status } = useSession();
@@ -16,12 +18,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     gsap.fromTo(
+      headingRef.current,
+      { opacity: 0, y: -50 },
+      { opacity: 1, y: 0, duration: 1, ease: 'power3.out', delay: 0.2 }
+    );
+    gsap.fromTo(
       formRef.current,
       { opacity: 0, y: 50 },
-      { opacity: 1, y: 0, duration: 1, ease: 'power3.out' }
+      { opacity: 1, y: 0, duration: 1, ease: 'power3.out', delay: 0.5 }
     );
   }, []);
 
@@ -88,6 +96,10 @@ export default function LoginPage() {
     }
   };
 
+  const handleGitHubSignIn = () => {
+    signIn('github');
+  };
+
   if (status === 'loading') {
     return <LoadingScreen />;
   }
@@ -97,10 +109,12 @@ export default function LoginPage() {
       {loading && <LoadingScreen />}
       <div
         className="absolute inset-0 bg-cover bg-center z-0"
-        style={{ backgroundImage: "url('/images/background.jpg')" }} // Ensure you have a suitable background image in your public/images folder
+        style={{ backgroundImage: "url('/loginstyle.webp')" }}
       />
       <div className="absolute inset-0 bg-black opacity-75 z-0" />
-      <h1 className="text-4xl text-white mb-8 z-10 font-bold">Login</h1>
+      <h1 ref={headingRef} className="text-4xl text-white mb-8 z-10 font-bold">
+        Login
+      </h1>
       <form
         onSubmit={handleSubmit}
         ref={formRef}
@@ -137,13 +151,30 @@ export default function LoginPage() {
           {passwordError && <p className="text-red-500 text-xs italic mt-2">{passwordError}</p>}
         </div>
         {error && <p className="text-red-500 text-xs italic mb-4">{error}</p>}
-        <div className="flex justify-center">
+        <div className="flex justify-center mb-4">
           <button
             type="submit"
             className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-full focus:outline-none focus:shadow-outline transition duration-300 ease-in-out"
           >
             Login
           </button>
+        </div>
+        <div className="flex justify-center mb-4">
+          <button
+            type="button"
+            onClick={handleGitHubSignIn}
+            className="bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 px-6 rounded-full focus:outline-none focus:shadow-outline transition duration-300 ease-in-out"
+          >
+            Sign in with GitHub
+          </button>
+        </div>
+        <div className="mt-4 text-center z-10">
+          <Link href="/auth/newuser" legacyBehavior>
+            
+            <span className="text-blue-500 hover:text-blue-700 transition duration-300 ease-in-out cursor-pointer">
+              Don't have an account? <span className="underline">Register Now</span>
+            </span>
+          </Link>
         </div>
       </form>
     </div>

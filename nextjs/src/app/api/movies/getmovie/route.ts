@@ -8,7 +8,13 @@ export const GET = async (
   if (req.method === "GET") {
     try {
       await connectToDB();
-      const movies = await prisma.movie.findMany();
+      const movies = await prisma.movie.findMany({
+        include: {
+          watchlists: true,
+          
+        }, 
+      }
+      );
       
       return NextResponse.json({ movies }, { status: 201 });
     } catch (error) {

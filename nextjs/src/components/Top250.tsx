@@ -1,4 +1,5 @@
-'use client'
+// src/components/Top250.tsx
+'use client';
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { z } from "zod";
@@ -25,10 +26,7 @@ const Top250 = () => {
     const fetchTop250Movies = async () => {
       try {
         const response = await axios.get<Movie[]>("http://localhost:8080/imdb/top250");
-        // Validate fetched data against schema
-        const validatedMovies = response.data.map((movie) =>
-          MovieSchema.parse(movie)
-        );
+        const validatedMovies = response.data.map((movie) => MovieSchema.parse(movie));
         setMovies(validatedMovies);
       } catch (error) {
         setError("Failed to fetch top 250 movies. Please try again later.");
@@ -52,56 +50,52 @@ const Top250 = () => {
   };
 
   return (
-    <div className="top250 justify-end block  rounded-xl text-center overflow-hidden mt-10">
-      <div className="bg-[#0e0e11] rounded-xl p-2">
-        <h1 >IMDb Top 250</h1>
+    <div className="top250 rounded-xl text-center overflow-hidden mt-10">
+      <div className="bg-[#0e0e11] rounded-t-xl p-2">
+        <h1 className="text-xl font-bold">IMDb Top 250</h1>
         <div className="pt-2">
-          <button className="pr-4 border-r-2 border-gray-900">
-            Movies
-          </button>
-          <button className="pl-1 ">
-            TVshows
-          </button>
+          <button className="pr-4 border-r-2 border-gray-900">Movies</button>
+          <button className="pl-1">TV Shows</button>
         </div>
       </div>
-      {loading && <p className="bg-[#131313]  -m-2">Loading...</p>}
-      {error && <p className="bg-[#131313]  -m-2">{error}</p>}
+      {loading && <p className="bg-[#131313] p-4">Loading...</p>}
+      {error && <p className="bg-[#131313] p-4">{error}</p>}
       {!loading && !error && (
-        <div className="movies-list flex flex-col">
+        <div className="movies-list flex flex-col bg-[#1c1c1c] p-4">
           {paginatedMovies.map((movie) => (
-            <button key={movie.ttid} className="movie-item hover:shadow-2xl bg-[#131313] flex mt-5 rounded-xl flex-row items-center w-23 h-36 m-0 border-t-2 p-4 border-[#333] duration-0 hover:duration-300 ease-in-out">
-              <Link
-                href={`/mov/${movie.ttid}`}
-                target="_self"
-                rel="noopener noreferrer"
-                className="movie-link w-full h-full flex-row flex "
-              >
-                <img
-                  className="movie-poster rounded-xl "
-                  src={movie.img_src}
-                  alt={movie.title}
-                  style={{
-                    display: 'block',
-                    objectFit: 'cover',
-                    width: "100%", height: "100%"
-                  }}
-                /> <div className="movie-details flex h-full items-center p-2">
-                  <h2>{movie.title}</h2>
-                </div>
-              </Link>
-
-            </button>
+            <Link
+              key={movie.ttid}
+              href={`/mov/${movie.ttid}`}
+              className="movie-item hover:shadow-2xl bg-[#131313] flex mt-5 rounded-xl items-center p-4 border-t-2 border-[#333] transition-all duration-300 hover:duration-300 ease-in-out"
+            >
+              <img
+                className="movie-poster rounded-xl"
+                src={movie.img_src}
+                alt={movie.title}
+                style={{
+                  display: 'block',
+                  objectFit: 'cover',
+                  width: "50px",
+                  height: "75px",
+                }}
+              />
+              <div className="movie-details ml-4">
+                <h2 className="text-lg font-semibold">{movie.title}</h2>
+              </div>
+            </Link>
           ))}
         </div>
       )}
-      <div className="pagination mt-5">
+      <div className="pagination mt-5 flex justify-center">
         {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
           <button
             key={pageNumber}
             onClick={() => handlePageChange(pageNumber)}
-            className={currentPage === pageNumber ? "active text-center bg-slate-600" : ""}
+            className={`px-3 py-1 mx-1 rounded-full transition-colors duration-300 ${
+              currentPage === pageNumber ? 'bg-red-600 text-white' : 'bg-gray-600 text-gray-200'
+            }`}
           >
-            &nbsp; {pageNumber} &nbsp;
+            {pageNumber}
           </button>
         ))}
       </div>

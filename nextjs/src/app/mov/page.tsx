@@ -1,15 +1,15 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import InfiniteScroll from 'react-infinite-scroll-component';
-import { Card, Inset, Strong, Text, TextField } from '@radix-ui/themes';
-import { GiAbstract069 } from "react-icons/gi";
 import { z } from 'zod';
 import Link from 'next/link';
+import { gsap } from 'gsap';
+import { GiAbstract069 } from "react-icons/gi";
 import Navbar from '@/components/Navbar';
 
 interface Movie {
-    id: string;
+    ttid: string;
     title: string;
     release_date: string;
     type: string;
@@ -17,7 +17,7 @@ interface Movie {
 }
 
 const MovieSchema = z.object({
-    id: z.string(),
+    ttid: z.string(),
     title: z.string(),
     release_date: z.string(),
     type: z.string(),
@@ -31,8 +31,14 @@ const MovieList: React.FC = () => {
     const [page, setPage] = useState<number>(1);
     const [hasMore, setHasMore] = useState<boolean>(true);
     const [error, setError] = useState<string>('');
+    const movieListRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        gsap.fromTo(
+            movieListRef.current,
+            { opacity: 0, y: 20 },
+            { opacity: 1, y: 0, duration: 1, ease: "power3.out" }
+        );
         fetchData();
     }, [searchQuery]);
 
@@ -58,10 +64,6 @@ const MovieList: React.FC = () => {
         }
     };
 
-    const handleMovieClick = (imdbId: string) => {
-        // Handle movie click
-    };
-
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchQuery(e.target.value);
         setPage(1);
@@ -73,62 +75,56 @@ const MovieList: React.FC = () => {
     };
 
     return (
-        <div className='w-full h-full mt-12 ml-2'>
-            <Navbar/>
-            <h2 className="text-center text-[#78A083] font-bold">Movie</h2>
-            <div className='w-full flex justify-center'>
-                <TextField.Root >
-                    <TextField.Slot>
-                        <GiAbstract069 />
-                    </TextField.Slot>
-                    <TextField.Input
-                        placeholder="Search the docs…"
-                        value={searchQuery}
-                        variant="surface"
-                        color="mint"
-                        radius='medium'
-                        onChange={handleSearchChange}
-                    />
-                </TextField.Root>
-            </div>
-            {loading && <p className="text-center mt-4">Loading...</p>}
-            {error && <p className="text-center text-red-600 mt-4">{error}</p>}
-            <div style={{ width: '100%', height: '100%', overflowY: 'auto' }}>
-                <InfiniteScroll
-                    dataLength={movies.length}
-                    next={loadMore}
-                    hasMore={hasMore}
-                    loader={<p className="text-center mt-4">Loading more movies...</p>}
-                >
-                    <ul className='flex flex-wrap justify-center p-4'>
-                        {movies.map((movie) => (
-                            <li key={movie.id} className='group flex-col items-center w-40 h-52 m-4 relative '>
-                                <Link href={`/mov/${movie.id}`}>
-                                    <Card size="2" style={{ width: '100%', cursor: 'pointer', position: 'absolute', maxWidth: 240 }} className='shadow-xl h-52 m-2 bg-lime-950 mix-blend-multiply' onClick={() => handleMovieClick(movie.id)}>
-                                        <Inset clip="padding-box" side="all" pb="0">
+        <div className='w-full h-full bg-[#141414] text-white'>
+            <Navbar />
+            <div className='mt-16'>
+                <h2 className="text-center text-[#E50914] font-bold text-3xl mb-6">Movies</h2>
+                <div className='w-full flex justify-center mb-8'>
+                    <div className="relative w-3/4 max-w-md">
+                        <input
+                            type="text"
+                            placeholder="Search for movies..."
+                            value={searchQuery}
+                            onChange={handleSearchChange}
+                            className="w-full p-3 rounded-lg bg-gray-800 text-white placeholder-gray-500"
+                        />
+                        <GiAbstract069 className="absolute right-3 top-3 text-gray-500" />
+                    </div>
+                </div>
+                {loading && <p className="text-center mt-4">Loading...</p>}
+                {error && <p className="text-center text-red-600 mt-4">{error}</p>}
+                <div ref={movieListRef} style={{ width: '100%', height: '100%', overflowY: 'auto' }}>
+                    <InfiniteScroll
+                        dataLength={movies.length}
+                        next={loadMore}
+                        hasMore={hasMore}
+                        loader={<p className="text-center mt-4">Loading more movies...</p>}
+                    >
+                        <ul className='flex flex-wrap justify-center p-4'>
+                            {movies.map((movie) => (
+                                <li key={movie.ttid} className='group flex-col items-center w-40 h-52 m-4 relative'>
+                                    <Link href={`/mov/${movie.ttid}`}>
+                                        <div className='group bg-gray-800 rounded-lg overflow-hidden shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl'>
                                             <img
                                                 src={movie.img_high}
                                                 alt={movie.title}
-                                                style={{
-                                                    display: 'block',
-                                                    objectFit: 'cover',
-                                                    width: '100%',
-                                                    height: '100%',
-                                                    backgroundColor: 'var(--gray-5)',
-                                                }}
+                                                className='object-cover w-full h-52'
                                             />
-                                        </Inset>
-                                        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-red-900 to-transparent transition-all duration-300 group-hover:scale-110">
-                                            <Text as="p" size="1" className='text-sky-50'>
-                                                <Strong>{movie.title}</Strong> Year: {movie.release_date} Type: {movie.type} ID: {movie.id}
-                                            </Text>
+                                            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black to-transparent transition-all duration-300">
+                                                <p className='text-white text-sm'>
+                                                    <strong>{movie.title}</strong> <br />
+                                                    Year: {movie.release_date} <br />
+                                                    Type: {movie.type} <br />
+                                                    ID: {movie.ttid}
+                                                </p>
+                                            </div>
                                         </div>
-                                    </Card>
-                                </Link>
-                            </li>
-                        ))}
-                    </ul>
-                </InfiniteScroll>
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </InfiniteScroll>
+                </div>
             </div>
         </div>
     );

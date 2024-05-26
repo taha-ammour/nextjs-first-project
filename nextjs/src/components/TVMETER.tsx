@@ -82,7 +82,7 @@ const TVmeter = () => {
         x: event.pageX,
         y: event.pageY,
         content: movie,
-        bgColors: ['#2d2d2d', '#3d3d3d', '#4d4d4d'], // fallback colors
+        bgColors: ['#2d2d2d', '#3d3d3d', '#4d4d4d'], 
         textColor: '#fff',
       });
       gsap.fromTo(".tooltip", { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" });

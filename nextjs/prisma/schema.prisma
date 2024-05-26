@@ -18,6 +18,9 @@ model User {
   username       String  @unique
   email          String?
   hashedPassword String?
+
+  sessions   Session[]
+  watchlists Watchlist[]
 }
 
 model Movie {
@@ -34,4 +37,26 @@ model Movie {
   trailer      String
   type         String
   genres       String[]
+
+  watchlists Watchlist[]
+}
+
+model Session {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String   @db.ObjectId
+  expires      DateTime
+  sessionToken String   @unique
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@index([userId], name: "userIdIndex")
+}
+
+model Watchlist {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  userId  String @db.ObjectId
+  movieId String @db.ObjectId
+  user    User   @relation(fields: [userId], references: [id])
+  movie   Movie  @relation(fields: [movieId], references: [id])
+
+  @@unique([userId, movieId], name: "user_movie_unique")
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import gsap from 'gsap';
+import Link from 'next/link';
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
@@ -13,12 +14,18 @@ export default function RegisterPage() {
   const [passwordError, setPasswordError] = useState('');
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     gsap.fromTo(
+      headingRef.current,
+      { opacity: 0, y: -50 },
+      { opacity: 1, y: 0, duration: 1, ease: 'power3.out', delay: 0.2 }
+    );
+    gsap.fromTo(
       formRef.current,
       { opacity: 0, y: 50 },
-      { opacity: 1, y: 0, duration: 1, ease: 'power3.out' }
+      { opacity: 1, y: 0, duration: 1, ease: 'power3.out', delay: 0.5 }
     );
   }, []);
 
@@ -82,10 +89,12 @@ export default function RegisterPage() {
     <div className="relative flex flex-col items-center justify-center min-h-screen bg-gray-900 py-2">
       <div
         className="absolute inset-0 bg-cover bg-center z-0"
-        style={{ backgroundImage: "url('/images/background.jpg')" }} 
+        style={{ backgroundImage: "url('/registerstyle.webp')" }} 
       />
       <div className="absolute inset-0 bg-black opacity-75 z-0" />
-      <h1 className="text-4xl text-white mb-8 z-10 font-bold">Register</h1>
+      <h1 ref={headingRef} className="text-4xl text-white mb-8 z-10 font-bold">
+        Register
+      </h1>
       <form
         onSubmit={handleSubmit}
         ref={formRef}
@@ -136,13 +145,20 @@ export default function RegisterPage() {
           {passwordError && <p className="text-red-500 text-xs italic mt-2">{passwordError}</p>}
         </div>
         {error && <p className="text-red-500 text-xs italic mb-4">{error}</p>}
-        <div className="flex justify-center">
+        <div className="flex justify-center mb-4">
           <button
             type="submit"
             className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-full focus:outline-none focus:shadow-outline transition duration-300 ease-in-out"
           >
             Register
           </button>
+        </div>
+        <div className="mt-4 text-center z-10">
+          <Link href="/auth/login" legacyBehavior>
+            <a className="text-blue-500 hover:text-blue-700 transition duration-300 ease-in-out">
+              Already have an account? <span className="underline">Login</span>
+            </a>
+          </Link>
         </div>
       </form>
     </div>
