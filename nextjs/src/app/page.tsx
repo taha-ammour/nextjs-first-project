@@ -7,6 +7,7 @@ import TVmeter from '@/components/TVMETER';
 import { Movie } from '@/components/utils/Movietype';
 import gsap from 'gsap';
 import { SessionProvider } from 'next-auth/react';
+import LoadingScreen from '@/components/LoadingScreenSign';
 
 export default function Home() {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -19,7 +20,7 @@ export default function Home() {
     const fetchRandomMovies = async () => {
       try {
         const response = await axios.get<{ movies: Movie[] }>('/api/movies/getmovie');
-        setMovies(response.data.movies.slice(0, 5)); // Limit to 5 movies
+        setMovies(response.data.movies.slice(0, 5)); 
       } catch (error) {
         setError('Failed to fetch random movies. Please try again later. ' + error);
       } finally {
@@ -34,7 +35,7 @@ export default function Home() {
     if (movies.length > 0) {
       const interval = setInterval(() => {
         setCurrentIndex((prevIndex) => (prevIndex + 1) % movies.length);
-      }, 5000); // Change image every 5 seconds
+      }, 5000); 
       return () => clearInterval(interval);
     }
   }, [movies]);
@@ -63,7 +64,7 @@ export default function Home() {
       setTooltip({
         show: true,
         content: movie,
-        bgColor: '#000000' // or any appropriate background color based on your design
+        bgColor: '#000000'
       });
       gsap.fromTo(
         '.tooltip',
@@ -74,13 +75,12 @@ export default function Home() {
   };
 
   return (
-    
     <div className="w-full h-full m-0 p-3 overflow-hidden text-cyan-100">
       <SessionProvider>
         <Navbar />
-    </SessionProvider>
-      <div className="relative w-full h-screen mt-24 flex justify-center items-center">
-        {loading && <p className="text-center">Loading...</p>}
+      </SessionProvider>
+      <div className="relative w-full h-screen mt-14 flex justify-center items-center">
+        {loading && <LoadingScreen />}
         {error && <p className="text-center text-red-500">{error}</p>}
         {!loading && !error && movies.length > 0 && (
           <div className="movie-slide absolute w-full h-full">
@@ -89,11 +89,11 @@ export default function Home() {
               alt={movies[currentIndex].title}
               className="w-full h-full object-cover"
             />
-            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 p-4 flex justify-between items-center">
-              <h2 className="text-white text-2xl font-bold">{movies[currentIndex].title}</h2>
+            <div className="absolute bottom-0 left-0 right-0 top-0 bg-gradient-to-t from-black via-transparent to-transparent p-4 flex flex-col justify-end items-start space-y-4">
+              <h2 className="text-white text-4xl font-bold">{movies[currentIndex].title}</h2>
               <button
                 onClick={handlePlayNowClick}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-red-700 transition"
+                className="bg-red-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-red-700 transition"
               >
                 Play Now
               </button>
@@ -137,11 +137,11 @@ export default function Home() {
           </div>
         )}
       </div>
-      <div className="flex flex-col lg:flex-row justify-between mt-10">
-        <div className="lg:w-3/4 w-full pr-4 mb-4 lg:mb-0">
+      <div className="flex flex-col lg:flex-row justify-between mt-10 space-y-4 lg:space-y-0 lg:space-x-4">
+        <div className="lg:w-3/4 w-full">
           <TVmeter />
         </div>
-        <div className="lg:w-1/4 w-full pl-4">
+        <div className="lg:w-1/4 w-full">
           <Top250 />
         </div>
       </div>

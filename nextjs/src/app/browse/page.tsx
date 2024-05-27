@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { gsap } from 'gsap';
 import { GiAbstract069 } from "react-icons/gi";
 import Navbar from '@/components/Navbar';
+import { SessionProvider } from 'next-auth/react';
 
 interface Movie {
     ttid: string;
@@ -75,6 +76,7 @@ const MovieList: React.FC = () => {
     };
 
     return (
+        <SessionProvider>
         <div className='w-full h-full bg-[#141414] text-white'>
             <Navbar />
             <div className='mt-16'>
@@ -103,7 +105,7 @@ const MovieList: React.FC = () => {
                         <ul className='flex flex-wrap justify-center p-4'>
                             {movies.map((movie) => (
                                 <li key={movie.ttid} className='group flex-col items-center w-40 h-52 m-4 relative'>
-                                    <Link href={`/mov/${movie.ttid}`}>
+                                    <Link href={`/browse/${movie.ttid}`}>
                                         <div className='group bg-gray-800 rounded-lg overflow-hidden shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl'>
                                             <img
                                                 src={movie.img_high}
@@ -127,6 +129,7 @@ const MovieList: React.FC = () => {
                 </div>
             </div>
         </div>
+        </SessionProvider>
     );
 };
 

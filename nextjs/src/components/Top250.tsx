@@ -65,7 +65,7 @@ const Top250 = () => {
           {paginatedMovies.map((movie) => (
             <Link
               key={movie.ttid}
-              href={`/mov/${movie.ttid}`}
+              href={`/browse/${movie.ttid}`}
               className="movie-item hover:shadow-2xl bg-[#131313] flex mt-5 rounded-xl items-center p-4 border-t-2 border-[#333] transition-all duration-300 hover:duration-300 ease-in-out"
             >
               <img

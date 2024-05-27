@@ -114,7 +114,7 @@ const TVmeter = () => {
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
             >
-              <Link href={`/mov/${movie.ttid}`}>
+              <Link href={`/browse/${movie.ttid}`}>
                 <CustomCard className="h-full">
                   <div className="relative w-full h-full overflow-hidden">
                     <img src={movie.img_high} alt={movie.title} className="w-full h-full object-cover" />

@@ -188,6 +188,69 @@ async def parse_top_tv_shows(html: str) -> list:
     else:
         raise RuntimeError("Couldn't find TV show list on the page.")
 
+async def fetch_movie_detailss(link: str) -> dict:
+    try:
+        details_html = await fetch_html(link)
+        details_soup = BeautifulSoup(details_html, 'html.parser')
+        title_type = details_soup.find('script', type='application/ld+json')
+        if title_type:
+            title_data = json.loads(title_type.string)
+            trailer_data = title_data.get('trailer', {})
+            genres = title_data.get("genre", []) or []
+            description = title_data.get("description", "") or ""
+            rating_value = str(title_data.get("aggregateRating", {}).get("ratingValue", "") or "")
+            rating_count = str(title_data.get("aggregateRating", {}).get("ratingCount", "") or "")
+            release_date = title_data.get("datePublished", "") or ""
+            runtime = title_data.get("duration", "") or ""
+            img_high = title_data.get("image", "") or ""
+            title = title_data.get("name", "") or ""
+
+            return {
+                'title': title,
+                'trailer': trailer_data.get("embedUrl"),
+                'img_high': img_high,
+                'genres': genres if genres is not None else [],
+                'description': description,
+                'rating_value': rating_value,
+                'rating_count': rating_count,
+                'release_date': release_date,
+                'runtime': runtime,
+                'type': title_data["@type"]
+            }
+    except Exception as e:
+        logger.error(f'Error fetching movie details from {link}: {e}')
+        return {}
+    return {}
+
+@app.get('/imdb/movie/{ttid}', response_model=Movie)
+async def get_movie_details(ttid: str):
+    url = f'https://www.imdb.com/title/{ttid}/'
+    try:
+        details = await fetch_movie_detailss(url)
+        if not details:
+            raise HTTPException(status_code=404, detail="Movie not found")
+        
+        movie = Movie(
+            title=details.get('title', ''),
+            link=url,
+            img_src=details.get('img_high', ''),
+            ttid=ttid,
+            type='TV Series' if details.get('type') == 'TVSeries' else 'Movie',
+            trailer=details.get('trailer'),
+            img_high=details.get('img_high'),
+            genres=details.get('genres', []),
+            description=details.get('description', ''),
+            rating_value=details.get('rating_value', ''),
+            rating_count=details.get('rating_count', ''),
+            release_date=details.get('release_date', ''),
+            runtime=details.get('runtime', '')
+        )
+        return movie
+    except Exception as e:
+        logger.error(f'Error fetching movie details for {ttid}: {e}')
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @app.get('/imdb/search/{query}')
 async def search_imdb(query: str):
     url = f'https://www.imdb.com/find/?q={query}'

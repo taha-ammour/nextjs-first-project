@@ -113,7 +113,7 @@ const Navbarfunc = () => {
               <FaTv className="mr-4" />
               Series
             </Link>
-            <Link href="/watch-later" className={`flex px-4 py-2 hover:bg-gray-700 rounded items-center ${currentPath === '/watch-later' ? 'bg-red-500' : ''}`}>
+            <Link href="/watchlist" className={`flex px-4 py-2 hover:bg-gray-700 rounded items-center ${currentPath === '/watchlist' ? 'bg-red-500' : ''}`}>
               <AiOutlineClockCircle className="mr-4" />
               Watch Later
             </Link>
